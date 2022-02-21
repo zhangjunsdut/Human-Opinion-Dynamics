@@ -1,0 +1,230 @@
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+import networkx as net
+import csv
+import re
+import random
+
+#导入文件
+def create_g(nodepath,edgepath,gg):#定义一个路径函数
+    csv_node=open(nodepath)#打开一个点文件
+    csv_edge=open(edgepath)#打开一个边文件
+    node_line=csv_node.readline()#逐行读取点文件
+    while node_line:
+        temp_line=re.split(',',node_line)#把点文件中的每一行用","分隔开
+        gg.add_node(temp_line[0],opinion=temp_line[1],activity=temp_line[2])#向网络中添加节点
+        node_line=csv_node.readline()
+
+    edge_line=csv_edge.readline()#逐行读取边文件
+    while edge_line:
+        temp_line=re.split(",",edge_line)#把边文件中的每一行用","分隔开
+        gg.add_edge(temp_line[0],temp_line[1])#向网络中添加边
+        edge_line=csv_edge.readline()
+    return gg
+
+#判断网络中的节点是否活跃
+def ISactivity(nodeU):
+    ran = random.uniform(0, 1)#生成0-1之间的一个随机数
+    U_ai = float(g.node[nodeU]['activity'])
+    if U_ai >= ran :#如果节点的activity大于生成的随机数，就说明这个节点活跃
+        return True
+    else:
+        return False
+
+#找到节点全部的邻居
+def all_neighbor(u,g,all_neighbor1):
+    all_neighbor1_set=g.neighbors(u)#找到节点的所有的邻居
+    for l in all_neighbor1_set:#把所有节点转化成list类型
+        all_neighbor1.append(l)
+    return all_neighbor1
+
+#寻找满足条件的邻居
+def get_neighbor_with_d(u,g,neighbors_set1,d):
+    i_neighbor = g.neighbors(u)#找出节点的所有邻居
+    u_op=g.node[u]['opinion']#拿出节点的opinion
+    for w in i_neighbor:
+        w_op = g.node[w]['opinion']
+        if (float(w_op) - float(u_op) )> -d and (float(w_op) - float(u_op)) < d:#根据if的判别条件找出符合条件的节点
+            neighbors_set1.append(w)
+    return neighbors_set1
+
+#找处意见值相差最大的节点
+def maxDiff_node(all_neighbor2,u,g,maxDiff_node1):
+    u_op=g.node[u]['opinion']#拿出节点u的opinion
+    for p in all_neighbor2:
+        p_op=g.node[p]['opinion']#拿出节点u的每一个邻居的opinion
+        maxDiff_node1=u#把节点u自身拿出来作为一个初始值，通过比较来更新maxDiff_node
+        maxDiff_neighbor_op = -100#定义一个初始最大值，通过比较来更新maxDiff_neighbor_op
+        diff=abs(float(u_op)-float(p_op))#取节点u和邻居的opinion之差的绝对值
+        if diff>=maxDiff_neighbor_op:
+               maxDiff_neighbor_op =diff
+               maxDiff_node1 =p
+    return maxDiff_node1
+
+
+#意见交互
+def op_interaction(u,g,neighbors_set_with_d,sp):
+    u_op = g.node[u]['opinion']#拿出节点u的opinion,为意见更新做准备
+    #?????????????????????
+    long=len(neighbors_set_with_d)
+    temp_ran = random.randint(1, long)
+    ran_neighbor1 = neighbors_set_with_d[temp_ran - 1]
+    #print('random interact with d=0.5 need_neighbor= ', need_neighbor)
+    need_op = g.node[ran_neighbor1]['opinion']#从67-72行的操作是用来随机得到一个符合阈值d条件的邻居
+    # print(need_ai)
+    # print(need_op)
+    new_u_op = float(u_op) + sp * (float(need_op) - float(u_op))#根据意见值修改规则对节点u进行意见值修改
+    if new_u_op < 0:
+        new_u_op = 0
+    elif new_u_op > 1:
+        new_u_op = 1
+    else:
+        new_u_op = new_u_op
+    # print(new_i_op)
+    new_need_op = float(need_op) + sp * (float(need_op) - float(u_op))#同时修改随机得到的邻居的意见值
+    if new_need_op < 0:
+        new_need_op = 0
+    elif new_need_op > 1:
+        new_need_op = 1
+    else:
+        new_need_op = new_need_op
+    # print(new_need_op)
+    g.add_nodes_from([u],opinion=new_u_op)#把修改的意见值写入到节点的属性当中
+    #print(g.node[u])
+    g.add_nodes_from([ran_neighbor1], opinion=new_need_op)#把修改的意见值写入到节点的属性当中
+    return ran_neighbor1
+
+#找出节点u邻居的邻居集合
+def get_neighbor_neighbor_set(g,ran_neighbor,need_neighbor_neighbor_set1):
+    temp_need_neighbor_neighbor = g.neighbors(ran_neighbor)#找出节点u邻居的邻居集合，（注意：这个集合包括节点u自身）
+    #????????????????????
+    for n in temp_need_neighbor_neighbor:
+        need_neighbor_neighbor_set1.append(n)#把节点u邻居的邻居集合转换成列表形式
+    return need_neighbor_neighbor_set1
+
+#从u的邻居的邻居集合中随机找一个节点
+def get_neighbor_neighbor(u,need_neighbor_neighbor_set):
+        #避免得到的邻居的邻居是u本身
+        twoequal = False
+        count=1
+        #????????????
+        long1 = len(need_neighbor_neighbor_set)
+        if(len(need_neighbor_neighbor_set)!=0):
+          if len(need_neighbor_neighbor_set)==1:
+              need_neighbor_neighbor1 = need_neighbor_neighbor_set[0]
+              if need_neighbor_neighbor1!=u:
+                  return need_neighbor_neighbor1
+
+          else:
+            while twoequal==False:
+                ##print('count=',count)
+                long1 = len(need_neighbor_neighbor_set)
+                ##print('long=',long1)
+
+                temp_ran1 = random.randint(1, long1)
+                need_neighbor_neighbor1= need_neighbor_neighbor_set[temp_ran1 - 1]
+                if need_neighbor_neighbor1!=u:
+                        twoequal=True
+                count=count+1
+        else:
+            need_neighbor_neighbor1 =None
+        return need_neighbor_neighbor1
+
+#找出非邻居节点
+def no_neighbor_node(u,g,all_neighbor2):
+    all_node = g.nodes()#找出全部节点
+    temp_all_node = []
+    for y in all_node:
+        temp_all_node.append(y)
+    long1=len(temp_all_node)
+    ##print("long1",long1)
+    for e in all_neighbor2:
+        temp_all_node.remove(e)
+    long2=len(temp_all_node)
+    ##print("long2",long2)
+    temp_ran2 = random.randint(1, long2)
+    global_random_node1 = temp_all_node[temp_ran2 - 1]
+    return global_random_node1
+
+
+
+
+def StepNFor_activit_deffaunt(g,step,d,dd, sp,shoulian_speed,xunhuan):
+ for u in g.nodes:
+    ##print('u=',u)
+    if ISactivity(u):#判断节点是否活跃
+        all_neighbor2 = []
+        all_neighbor2 = all_neighbor(u, g, all_neighbor2)# 找出节点u的所有邻居集合
+        ##print('all_neighbir2', all_neighbor2)
+        neighbors_set_with_d=[]
+        neighbors_set_with_d=get_neighbor_with_d(u,g,neighbors_set_with_d,d)#找出所有满足阈值d的邻居集合
+        ##print('neighbors_set_with_d)',neighbors_set_with_d)
+        long=len(neighbors_set_with_d)
+        ##print('len(neighbors_set_with_d)',long)
+        if long != 0:
+            maxDiff_node2 = maxDiff_node(all_neighbor2, u, g, maxDiff_node)#找出与节点u意见值相差最大的邻居
+            ##print('maxDiff_node2', maxDiff_node2)
+            ran_neighbor=op_interaction(u, g, neighbors_set_with_d,sp)#进行意见交互
+            ##print('need_neighbor',ran_neighbor)
+            need_neighbor_neighbor_set= []
+            need_neighbor_neighbor_set=get_neighbor_neighbor_set(g,ran_neighbor,need_neighbor_neighbor_set)#得到邻居的邻居集合
+            ##print('len(need_neighbor_neighbor_set))',len(need_neighbor_neighbor_set))
+            ##print('need_neighbor_neighbor_set',need_neighbor_neighbor_set)
+            need_neighbor_neighbor=get_neighbor_neighbor(u,need_neighbor_neighbor_set)#得到邻居的邻居（注意：一定不是节点自身）
+            ##print('need_neighbor_neighbor',need_neighbor_neighbor)
+            if (len(need_neighbor_neighbor_set) != 0)and(need_neighbor_neighbor==None):
+                g.add_edge(u, need_neighbor_neighbor)
+                g.remove_edge(u, maxDiff_node2)
+            else:
+                g.remove_edge(u,ran_neighbor )
+                g.add_edge(u, ran_neighbor )
+
+        else:
+            all_node = g.nodes()  # 找出全部节点
+            temp_all_node = []
+            for y in all_node:
+                temp_all_node.append(y)
+            long1=len(temp_all_node)-1
+            ##print("long1",long1)
+            if len(all_neighbor2)!=0 and len(all_neighbor2)!=long1:
+                maxDiff_node2 = maxDiff_node(all_neighbor2, u, g, maxDiff_node)
+                ##print("maxdiff_node2", maxDiff_node2)
+                global_random_node=[]
+                global_random_node=no_neighbor_node(u,g,all_neighbor2)
+                ##print("global_random_node",global_random_node)
+                g.remove_edge(u, maxDiff_node2)
+                g.add_edge(u, global_random_node)
+
+ if (step)%2==0:
+  node_filename = "g:/output11/" +str(xunhuan)+"/"+str(xunhuan)+"_"+ str(shoulian_speed) +"_"+ str(dd) + "_" + str(step) + "_node.csv"  # 将阈值和循环交互的步数放入文件名
+  node_csvfile = open(node_filename, 'w')
+  edge_filename = "g:/output11/"+str(xunhuan)+"/" +str(xunhuan)+"_"+ str(shoulian_speed) +"_"+ str(dd) +"_"+ str(step) +  "_edge.csv"
+  edge_csvfile = open(edge_filename, 'w')
+  with open(node_filename ,'w') as f:
+     write=csv.writer(f)
+     write.writerow(['id','op'])
+     for u in g.nodes:
+         temp_node = []
+         temp_node= u + "," + str(g.node[u]['opinion'])
+        ##print(temp_node)
+         f.write(temp_node+'\n')
+  with open(edge_filename ,'w') as f:
+     write = csv.writer(f)
+     write.writerow(['Source', 'Target'])
+     for e in g.edges:
+         temp_edge = []
+         temp_edge = e[0] + "," + e[1]
+         ##print(temp_edge)
+         f.write(temp_edge+'\n')
+
+#主程序
+for xunhuan in range(1,2):  #循环20次
+ for shoulian_speed in range(1,11):#收敛速度从0.1-1
+  sp = float(shoulian_speed) / 10
+  for dd in range(1,11):#阈值从0.1-1
+    g=net.DiGraph()#生成一个有向图
+    g=create_g('H:/lixin/input/subnodePower1.1.csv','H:/lixin/input/subedge.csv',g)#创建网络
+    d=float(dd)/10
+#print(g.nodes)
+    for step in range(1,3001) :#重复交流3000次
+        StepNFor_activit_deffaunt(g, step, d,dd, sp,shoulian_speed,xunhuan)
